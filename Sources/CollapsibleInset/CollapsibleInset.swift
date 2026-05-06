@@ -5,13 +5,35 @@ import SwiftUI
 private struct CollapsibleInsetModifier<Header: View>: ViewModifier {
     var edge: VerticalEdge
     var scrollDeltaRange: CGFloat
-
+    // TODO: rename header
     @ViewBuilder var header: (CGFloat) -> Header
 
-    @State private var isExpanded = true
+    init(edge: VerticalEdge, scrollDeltaRange: CGFloat, isExpanded: Binding<Bool>?, header: @escaping (CGFloat) -> Header) {
+        self.edge = edge
+        self.scrollDeltaRange = scrollDeltaRange
+        isExpandedBinding = isExpanded
+        self.header = header
+    }
+
+    private var isExpandedBinding: Binding<Bool>?
+
     @State private var scrollPhase: ScrollPhase = .idle
     @State private var scrollDelta: CGFloat = 0
     @State private var scrollDirection: ScrollDirection = .none
+    @State private var isExpandedFallback: Bool = true
+
+    private var isExpanded: Bool {
+        get {
+            isExpandedBinding?.wrappedValue ?? isExpandedFallback
+        }
+        nonmutating set {
+            if let isExpandedBinding {
+                isExpandedBinding.wrappedValue = newValue
+            } else {
+                isExpandedFallback = newValue
+            }
+        }
+    }
 
     private enum ScrollDirection { case none, down, up }
 
@@ -60,6 +82,7 @@ public extension View {
     ///   - header: A view builder that receives the current expansion (0 = collapsed, 1 = expanded).
     func collapsibleInset(
         edge: VerticalEdge = .top,
+        isExpanded: Binding<Bool>? = nil,
         scrollDeltaRange: CGFloat = 200,
         @ViewBuilder header: @escaping (CGFloat) -> some View,
     ) -> some View {
@@ -67,6 +90,7 @@ public extension View {
             CollapsibleInsetModifier(
                 edge: edge,
                 scrollDeltaRange: scrollDeltaRange,
+                isExpanded: isExpanded,
                 header: header,
             ),
         )
@@ -74,47 +98,41 @@ public extension View {
 }
 
 #Preview("top edge") {
-    NavigationStack {
-        List(1 ... 30, id: \.self) { i in
-            Text("Row \(i)").padding(.vertical, 4)
+    @Previewable @State var isExpanded = true
+
+    List(1 ... 30, id: \.self) { i in
+        Text("Row \(i)").padding(.vertical, 4)
+    }
+    .listStyle(.plain)
+    .collapsibleInset(isExpanded: $isExpanded) { expansion in
+        VStack(spacing: 4 * expansion) {
+            Text("Collapsing Header")
+                .font(.system(size: 14 + expansion * 16, weight: .semibold))
+            Text("Scroll down to collapse")
+                .font(.caption)
+                .opacity(expansion)
         }
-        .listStyle(.plain)
-        .collapsibleInset { expansion in
-            VStack(spacing: 4 * expansion) {
-                Text("Collapsing Header")
-                    .font(.system(size: 14 + expansion * 16, weight: .semibold))
-                Text("Scroll down to collapse")
-                    .font(.caption)
-                    .opacity(expansion)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8 + expansion * 12)
-            .background(Material.ultraThin)
-        }
-        .navigationTitle("Preview")
-        .navigationBarTitleDisplayMode(.inline)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8 + expansion * 12)
+        .background(.bar)
     }
 }
 
 #Preview("bottom edge") {
-    NavigationStack {
-        List(1 ... 30, id: \.self) { i in
-            Text("Row \(i)").padding(.vertical, 4)
+    List(1 ... 30, id: \.self) { i in
+        Text("Row \(i)").padding(.vertical, 4)
+    }
+    .listStyle(.plain)
+    .collapsibleInset(edge: .bottom) { expansion in
+        VStack(spacing: 4 * expansion) {
+            Text("Collapsing Footer")
+                .font(.system(size: 14 + expansion * 16, weight: .semibold))
+            Text("Scroll down to collapse")
+                .font(.caption)
+                .opacity(expansion)
         }
-        .listStyle(.plain)
-        .collapsibleInset(edge: .bottom) { expansion in
-            VStack(spacing: 4 * expansion) {
-                Text("Collapsing Footer")
-                    .font(.system(size: 14 + expansion * 16, weight: .semibold))
-                Text("Scroll down to collapse")
-                    .font(.caption)
-                    .opacity(expansion)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8 + expansion * 12)
-            .background(Material.ultraThin)
-        }
-        .navigationTitle("Preview")
-        .navigationBarTitleDisplayMode(.inline)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8 + expansion * 12)
+        .background(.bar)
     }
 }
