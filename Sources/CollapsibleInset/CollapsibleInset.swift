@@ -1,18 +1,19 @@
 import SwiftUI
 
+public typealias CollapsibleInsetContentFactory<Content> = (CGFloat, Binding<Bool>) -> Content where Content: View
+
 /// Tracks scroll movement and snaps the inset to fully expanded or collapsed when scrolling stops.
-/// Apply to any scrollable view (List, ScrollView, etc.) via `.collapsibleInset { expansion in ... }`.
-private struct CollapsibleInsetModifier<Header: View>: ViewModifier {
+/// Apply to any scrollable view (List, ScrollView, etc.) via `.collapsibleInset { expansion, isExpanded in ... }`.
+private struct CollapsibleInsetModifier<SafeAreaContent: View>: ViewModifier {
     var edge: VerticalEdge
     var scrollDeltaRange: CGFloat
-    // TODO: rename header
-    @ViewBuilder var header: (CGFloat) -> Header
+    @ViewBuilder var safeAreaContent: CollapsibleInsetContentFactory<SafeAreaContent>
 
-    init(edge: VerticalEdge, scrollDeltaRange: CGFloat, isExpanded: Binding<Bool>?, header: @escaping (CGFloat) -> Header) {
+    init(edge: VerticalEdge, scrollDeltaRange: CGFloat, isExpanded: Binding<Bool>?, content: @escaping CollapsibleInsetContentFactory<SafeAreaContent>) {
         self.edge = edge
         self.scrollDeltaRange = scrollDeltaRange
         isExpandedBinding = isExpanded
-        self.header = header
+        safeAreaContent = content
     }
 
     private var isExpandedBinding: Binding<Bool>?
@@ -44,7 +45,7 @@ private struct CollapsibleInsetModifier<Header: View>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .safeAreaInset(edge: edge) { header(expansion) }
+            .safeAreaInset(edge: edge) { safeAreaContent(expansion, .init(get: { isExpanded }, set: { isExpanded = $0 })) }
             .onScrollPhaseChange { _, new in
                 scrollPhase = new
                 if new == .idle {
@@ -78,20 +79,21 @@ public extension View {
     ///
     /// - Parameters:
     ///   - edge: Which vertical edge the inset is attached to. Default is `.top`.
+    ///   - isExpanded: Optional external binding driving the expansion state. When `nil`, the modifier manages the state internally.
     ///   - scrollDeltaRange: How many points of scroll travel map to a full collapse/expand. Default is 200.
-    ///   - header: A view builder that receives the current expansion (0 = collapsed, 1 = expanded).
-    func collapsibleInset(
+    ///   - content: A view builder that receives the current expansion (0 = collapsed, 1 = expanded) and a binding to the expansion state, allowing the content to programmatically toggle it.
+    func collapsibleInset<Content: View>(
         edge: VerticalEdge = .top,
         isExpanded: Binding<Bool>? = nil,
         scrollDeltaRange: CGFloat = 200,
-        @ViewBuilder header: @escaping (CGFloat) -> some View,
+        @ViewBuilder content: @escaping CollapsibleInsetContentFactory<Content>,
     ) -> some View {
         modifier(
-            CollapsibleInsetModifier(
+            CollapsibleInsetModifier<Content>(
                 edge: edge,
                 scrollDeltaRange: scrollDeltaRange,
                 isExpanded: isExpanded,
-                header: header,
+                content: content,
             ),
         )
     }
@@ -104,10 +106,15 @@ public extension View {
         Text("Row \(i)").padding(.vertical, 4)
     }
     .listStyle(.plain)
-    .collapsibleInset(isExpanded: $isExpanded) { expansion in
+    .collapsibleInset(isExpanded: $isExpanded) { expansion, _ in
         VStack(spacing: 4 * expansion) {
             Text("Collapsing Header")
                 .font(.system(size: 14 + expansion * 16, weight: .semibold))
+                .onTapGesture {
+                    withAnimation {
+                        isExpanded.toggle()
+                    }
+                }
             Text("Scroll down to collapse")
                 .font(.caption)
                 .opacity(expansion)
@@ -123,10 +130,15 @@ public extension View {
         Text("Row \(i)").padding(.vertical, 4)
     }
     .listStyle(.plain)
-    .collapsibleInset(edge: .bottom) { expansion in
+    .collapsibleInset(edge: .bottom) { expansion, isExpanded in
         VStack(spacing: 4 * expansion) {
             Text("Collapsing Footer")
                 .font(.system(size: 14 + expansion * 16, weight: .semibold))
+                .onTapGesture {
+                    withAnimation {
+                        isExpanded.wrappedValue.toggle()
+                    }
+                }
             Text("Scroll down to collapse")
                 .font(.caption)
                 .opacity(expansion)
