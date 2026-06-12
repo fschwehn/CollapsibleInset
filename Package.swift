@@ -10,16 +10,23 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "CollapsibleInset",
-            targets: ["CollapsibleInset"]
+            targets: ["CollapsibleInset"],
+        ),
+        .library(
+            name: "CollapsibleInsetDev",
+            targets: ["CollapsibleInsetDev"],
         ),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "CollapsibleInset"
+            name: "CollapsibleInset",
+        ),
+        .target(
+            name: "CollapsibleInsetDev",
         ),
 
     ],
-    swiftLanguageModes: [.v6]
+    swiftLanguageModes: [.v6],
 )
