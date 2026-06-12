@@ -44,33 +44,35 @@ private struct CollapsibleInsetModifier<SafeAreaContent: View>: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
-            .safeAreaInset(edge: edge) { safeAreaContent(expansion, .init(get: { isExpanded }, set: { isExpanded = $0 })) }
-            .onScrollPhaseChange { _, new in
-                scrollPhase = new
-                if new == .idle {
-                    withAnimation {
-                        isExpanded = expansion >= 0.5
-                        scrollDelta = 0
-                        scrollDirection = .none
-                    }
+        ZStack {
+            content
+        }
+        .safeAreaInset(edge: edge) { safeAreaContent(expansion, .init(get: { isExpanded }, set: { isExpanded = $0 })) }
+        .onScrollPhaseChange { _, new in
+            scrollPhase = new
+            if new == .idle {
+                withAnimation {
+                    isExpanded = expansion >= 0.5
+                    scrollDelta = 0
+                    scrollDirection = .none
                 }
             }
-            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
-                guard scrollPhase == .interacting || scrollPhase == .decelerating else { return }
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { old, new in
+            guard scrollPhase == .interacting || scrollPhase == .decelerating else { return }
 
-                let frameDelta = new - old
-                scrollDelta += frameDelta
+            let frameDelta = new - old
+            scrollDelta += frameDelta
 
-                if scrollPhase == .interacting {
-                    scrollDirection = frameDelta > 0 ? .down : .up
-                }
+            if scrollPhase == .interacting {
+                scrollDirection = frameDelta > 0 ? .down : .up
             }
-            .onChange(of: scrollDirection) { _, _ in
-                if scrollPhase == .interacting {
-                    scrollDelta = max(-scrollDeltaRange, min(scrollDeltaRange, scrollDelta))
-                }
+        }
+        .onChange(of: scrollDirection) { _, _ in
+            if scrollPhase == .interacting {
+                scrollDelta = max(-scrollDeltaRange, min(scrollDeltaRange, scrollDelta))
             }
+        }
     }
 }
 
